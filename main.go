@@ -5,8 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"go/types"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/filemode"
@@ -36,17 +38,29 @@ func main() {
 		logger.Infof("dstdir not specified, use current dir: %s", flagDir)
 	}
 
-	url := "https://github.com/unistack-org/micro"
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	cloneOpts := &git.CloneOptions{
-		URL:          url,
-		SingleBranch: true,
-		Progress:     os.Stdout,
-		Depth:        1,
+	u, err := url.Parse(flagUrl)
+	if err != nil {
+		logger.Fatal(err)
 	}
+
+	var rev string
+	if idx := strings.Index(u.Path, "@"); idx > 0 {
+		rev = u.Path[idx+1:]
+	}
+
+	cloneOpts := &git.CloneOptions{
+		URL:      flagUrl,
+		Progress: os.Stdout,
+	}
+
+	if len(rev) == 0 {
+		cloneOpts.SingleBranch = true
+		cloneOpts.Depth = 1
+	}
+
 	if err := cloneOpts.Validate(); err != nil {
 		logger.Fatal(err)
 	}
