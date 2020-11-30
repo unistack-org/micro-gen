@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/unistack-org/micro/v3/logger"
 )
 
 func isGenerated(name string) bool {
@@ -40,9 +42,11 @@ func cleanDir(dir string) error {
 			return err
 		}
 		if dir == "vendor" {
+			logger.Info("skip vendor dir")
 			return filepath.SkipDir
 		}
 		if isGenerated(path) {
+			logger.Infof("remove generated file: %s", path)
 			err = os.Remove(path)
 		}
 		return err

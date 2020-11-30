@@ -6,23 +6,23 @@ import (
 	"fmt"
 	"go/types"
 	"os"
+	"path/filepath"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/filemode"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/unistack-org/micro/v3/logger"
 )
 
 var (
-	flagDir   string
-	flagUrl   string
-	flagForce bool
+	flagDir string
+	flagUrl string
 )
 
 func init() {
 	flag.StringVar(&flagDir, "dstdir", "", "place for generated files")
 	flag.StringVar(&flagUrl, "url", "", "repo url path")
-	flag.BoolVar(&flagForce, "force", false, "owerwrite files")
 }
 
 func main() {
@@ -82,9 +82,25 @@ func main() {
 
 	err = tree.Files().ForEach(func(file *object.File) error {
 		if file == nil {
-			return types.Error{Msg: "File pointer is empty"}
+			return types.Error{Msg: "file pointer is empty"}
 		}
-		fmt.Printf("%#+v\n", file)
+
+		fmode, err := file.Mode.ToOSFileMode()
+		if err != nil {
+			return err
+		}
+
+		switch file.Mode {
+		case filemode.Executable:
+			return writeFile(file, flagDir, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, fmode)
+		case filemode.Dir:
+			return os.MkdirAll(filepath.Join(flagDir, file.Name), fmode)
+		case filemode.Regular:
+			return writeFile(file, flagDir, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, fmode)
+		default:
+			return fmt.Errorf("unsupported filetype %v for %s", file.Mode, file.Name)
+		}
+
 		return nil
 	})
 
